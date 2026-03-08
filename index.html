@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro - Cloud Sync</title>
+    <title>My Memo Pro - Cloud Sync Fix</title>
     
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,26 +13,24 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // Global instances
-        window.firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(window.firebaseConfig);
-        const db = getFirestore(app);
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'my-memo-pro-v1';
 
         window.db = db;
         window.appId = appId;
+        window.auth = auth;
 
-        // State
         let currentTabId = 'tab1';
         let appState = { data: {}, tabs: { tab1: 'メイン', tab2: '店舗別', tab3: '予備', tab4: 'リスト' } };
-        let user = null;
+        let currentUser = null;
         let unsubscribe = null;
 
         const COLORS = [
@@ -43,35 +41,42 @@
             { name: 'gray', class: 'bg-gray' }
         ];
 
-        // 認証と初期化
-        onAuthStateChanged(auth, async (u) => {
-            if (u) {
-                user = u;
+        // 1. 認証の初期化 (RULE 3 準拠)
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                document.getElementById('userIdDisplay').innerText = "接続エラー。再読み込みしてください。";
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
                 document.getElementById('userIdDisplay').innerText = `ID: ${user.uid}`;
-                setupSync();
-            } else {
-                await signInAnonymously(auth);
+                setupSync(user.uid);
             }
         });
 
-        // クラウド同期の設定
-        function setupSync() {
-            if (!user) return;
+        // 2. クラウド同期 (RULE 1 準拠)
+        function setupSync(uid) {
+            const docRef = doc(db, 'artifacts', appId, 'users', uid, 'settings', 'main');
             
-            // ローカルデータの移行処理
+            // ローカルデータの初回移行
             const localData = localStorage.getItem('memo_pro_v14_data');
-            const localTabs = localStorage.getItem('memo_pro_v14_tabs');
-            
-            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'main');
-            
             if (localData) {
                 const data = JSON.parse(localData);
+                const localTabs = localStorage.getItem('memo_pro_v14_tabs');
                 const tabs = localTabs ? JSON.parse(localTabs) : appState.tabs;
                 setDoc(docRef, { data, tabs }, { merge: true });
-                localStorage.removeItem('memo_pro_v14_data'); // 移行後は消去
+                localStorage.removeItem('memo_pro_v14_data');
             }
 
-            // リアルタイムリスナーの開始
             if (unsubscribe) unsubscribe();
             unsubscribe = onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
@@ -81,21 +86,21 @@
                     renderTabs();
                     renderCards();
                 } else {
-                    // クラウドにデータがない場合は初期化
                     saveToCloud();
                 }
-            }, (err) => console.error("Sync Error:", err));
+            }, (err) => {
+                console.error("Firestore Listen Error:", err);
+            });
         }
 
         async function saveToCloud() {
-            if (!user) return;
-            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'main');
+            if (!currentUser) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'settings', 'main');
             await setDoc(docRef, { data: appState.data, tabs: appState.tabs }, { merge: true });
         }
 
-        // --- 以下 UI ロジック ---
-
-        function renderTabs() {
+        // 3. UIロジック
+        window.renderTabs = () => {
             const tabBar = document.getElementById('tabBar');
             tabBar.innerHTML = '';
             Object.keys(appState.tabs).forEach(id => {
@@ -113,7 +118,7 @@
                 tabBar.appendChild(btn);
             });
             lucide.createIcons();
-        }
+        };
 
         window.switchTab = (id) => { currentTabId = id; renderTabs(); renderCards(); };
 
@@ -127,6 +132,10 @@
             container.innerHTML = '';
             const cards = appState.data[currentTabId] || [];
             
+            if (cards.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center py-20 text-gray-400 text-sm">メモがありません。「＋」ボタンで追加してください</div>`;
+            }
+
             cards.forEach(card => {
                 const div = document.createElement('div');
                 div.className = `keep-card group ${card.color || 'bg-white'}`;
@@ -170,7 +179,7 @@
             });
         };
 
-        // --- Event Handlers ---
+        // イベント系
         window.addItem = (cardId) => {
             const input = document.getElementById(`input-${cardId}`);
             const text = input.value.trim();
@@ -233,6 +242,7 @@
 
         window.resizeAllGridItems = () => {
             const container = document.getElementById('cardContainer');
+            if(!container) return;
             const rowHeight = parseInt(window.getComputedStyle(container).getPropertyValue('grid-auto-rows'));
             const rowGap = parseInt(window.getComputedStyle(container).getPropertyValue('grid-row-gap')) || 0;
             
@@ -243,20 +253,39 @@
             });
         };
 
-        window.onresize = window.resizeAllGridItems;
-        const observer = new MutationObserver(window.resizeAllGridItems);
-        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-
-        // 同期用IDのコピー機能
         window.copyId = () => {
-            const idText = user ? user.uid : "Loading...";
+            const idText = currentUser ? currentUser.uid : "";
+            if (!idText) return;
             const temp = document.createElement('textarea');
             temp.value = idText;
             document.body.appendChild(temp);
             temp.select();
             document.execCommand('copy');
             document.body.removeChild(temp);
-            alert("IDをコピーしました。他端末でこのIDを入力すると同期できます。");
+            alert("IDをコピーしました。他端末の「他端末と同期」で貼り付けてください。");
+        };
+
+        window.syncWithOtherDevice = async () => {
+            const otherId = prompt("他端末でコピーしたIDを入力してください：");
+            if (otherId && otherId.trim()) {
+                const docRef = doc(db, 'artifacts', appId, 'users', otherId.trim(), 'settings', 'main');
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    if (confirm("入力されたIDのデータに切り替えますか？現在のデータは上書きされます。")) {
+                        setupSync(otherId.trim());
+                        alert("同期しました！");
+                    }
+                } else {
+                    alert("指定されたIDのデータが見つかりません。");
+                }
+            }
+        };
+
+        window.onload = () => {
+            initAuth();
+            window.onresize = window.resizeAllGridItems;
+            const observer = new MutationObserver(window.resizeAllGridItems);
+            observer.observe(document.body, { childList: true, subtree: true, characterData: true });
         };
     </script>
     <style>
@@ -306,17 +335,25 @@
     </header>
 
     <main class="max-w-7xl mx-auto p-3 md:p-6 mt-2">
-        <div id="cardContainer"></div>
+        <div id="cardContainer">
+            <div class="col-span-2 text-center py-20 text-gray-400">
+                <div class="animate-spin inline-block mb-4"><i data-lucide="refresh-cw"></i></div>
+                <p>クラウドに接続中...</p>
+            </div>
+        </div>
     </main>
 
     <footer class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 z-40">
-        <div class="max-w-7xl mx-auto flex items-center justify-between text-[10px] text-gray-400">
-            <div id="userIdDisplay" class="truncate mr-4">ID: Connecting...</div>
-            <button onclick="window.copyId()" class="bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full text-gray-600 dark:text-gray-300 active:scale-95 transition-all">IDをコピーして他端末と同期</button>
+        <div class="max-w-7xl mx-auto flex flex-col gap-2">
+            <div id="userIdDisplay" class="text-[10px] text-gray-400 truncate">ID: Connecting...</div>
+            <div class="flex gap-2">
+                <button onclick="window.copyId()" class="flex-1 bg-gray-100 dark:bg-gray-700 py-2 rounded-xl text-xs font-medium text-gray-600 dark:text-gray-300 active:scale-95 transition-all">IDをコピー</button>
+                <button onclick="window.syncWithOtherDevice()" class="flex-1 bg-orange-100 dark:bg-orange-900/30 py-2 rounded-xl text-xs font-medium text-orange-600 dark:text-orange-400 active:scale-95 transition-all">他端末と同期</button>
+            </div>
         </div>
     </footer>
 
-    <button onclick="window.addNewCard()" class="fixed bottom-14 right-6 bg-orange-500 text-white p-4 rounded-2xl shadow-lg active:scale-90 transition-all z-40">
+    <button onclick="window.addNewCard()" class="fixed bottom-24 right-6 bg-orange-500 text-white p-4 rounded-2xl shadow-lg active:scale-90 transition-all z-40">
         <i data-lucide="plus" class="w-7 h-7"></i>
     </button>
 
