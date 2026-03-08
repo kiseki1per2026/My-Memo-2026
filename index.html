@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro - Ultimate</title>
+    <title>My Memo Pro - Refined Tile</title>
     
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,39 +34,38 @@
             overflow-x: hidden;
         }
 
-        /* タイルレイアウト用コンテナ */
+        /* 改良版：タイルレイアウト（Masonry風） */
         #cardContainer {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr); 
-            grid-auto-rows: 1px; /* 1px単位で細かく計算 */
-            gap: 12px;
-            align-items: start;
+            column-count: 2; /* 2列表示 */
+            column-gap: 12px;
+            width: 100%;
         }
 
         @media (min-width: 768px) {
             #cardContainer {
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                gap: 16px;
+                column-count: auto;
+                column-width: 280px;
+                column-gap: 20px;
             }
         }
 
         .keep-card { 
+            display: inline-block; /* column-count内での分割を防ぐ */
+            width: 100%;
+            margin-bottom: 12px;
             border-radius: 16px;
-            transition: transform 0.2s ease, box-shadow 0.2s ease; 
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
+            transition: transform 0.2s ease; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             border: 1px solid rgba(0,0,0,0.08);
             background-clip: padding-box;
-            height: fit-content;
+            break-inside: avoid; /* カードが途中で切れないようにする */
         }
 
-        /* ドラッグハンドルの視認性向上 */
+        /* ドラッグハンドルの操作エリアを明確化 */
         .drag-handle { 
             cursor: grab; 
             padding: 8px 12px; 
-            opacity: 0.4; 
+            opacity: 0.3; 
             display: flex;
             align-items: center;
         }
@@ -172,20 +171,19 @@
         ];
 
         function init() {
-            // ストレージキーを更新してクリーンに
-            const localData = localStorage.getItem('memo_pro_v10_data');
-            const localTabs = localStorage.getItem('memo_pro_v10_tabs');
+            const localData = localStorage.getItem('memo_pro_v11_data');
+            const localTabs = localStorage.getItem('memo_pro_v11_tabs');
             
             if (!localData) {
                 // 旧バージョンからの自動移行
-                const oldKeys = ['memo_pro_v9_data', 'memo_pro_v8_data', 'memo_pro_v7_data'];
+                const oldKeys = ['memo_pro_v10_data', 'memo_pro_v9_data', 'memo_pro_v8_data'];
                 let oldFound = null;
                 for(let key of oldKeys) {
                     const d = localStorage.getItem(key);
                     if(d) { oldFound = d; break; }
                 }
                 appData = oldFound ? JSON.parse(oldFound) : { tab1: [], tab2: [], tab3: [], tab4: [] };
-                const oldTabs = localStorage.getItem('memo_pro_v9_tabs') || localStorage.getItem('memo_pro_v8_tabs');
+                const oldTabs = localStorage.getItem('memo_pro_v10_tabs') || localStorage.getItem('memo_pro_v9_tabs');
                 if(oldTabs) tabNames = JSON.parse(oldTabs);
             } else {
                 appData = JSON.parse(localData);
@@ -211,9 +209,8 @@
         }
 
         function save() {
-            localStorage.setItem('memo_pro_v10_data', JSON.stringify(appData));
-            localStorage.setItem('memo_pro_v10_tabs', JSON.stringify(tabNames));
-            resizeAllCards();
+            localStorage.setItem('memo_pro_v11_data', JSON.stringify(appData));
+            localStorage.setItem('memo_pro_v11_tabs', JSON.stringify(tabNames));
         }
 
         function renderTabs() {
@@ -267,7 +264,7 @@
                 delete item.timestamp;
             }
 
-            // チェック済みを最後尾へ
+            // 並び替え
             card.items.sort((a, b) => {
                 if (a.checked !== b.checked) return a.checked ? 1 : -1;
                 if (a.checked && b.checked) return (a.timestamp || 0) - (b.timestamp || 0);
@@ -371,31 +368,16 @@
                 container.appendChild(div);
             });
             lucide.createIcons();
-            setTimeout(resizeAllCards, 50);
             
             if (sortableInstance) sortableInstance.destroy();
             sortableInstance = new Sortable(container, { 
                 animation: 250, 
                 handle: '.drag-handle',
-                ghostClass: 'opacity-0',
+                ghostClass: 'opacity-20',
                 onEnd: () => {
                     const newOrder = Array.from(container.querySelectorAll('.keep-card')).map(el => findCard(el.dataset.id));
                     appData[currentTabId] = newOrder;
                     save();
-                }
-            });
-        }
-
-        function resizeAllCards() {
-            const container = document.getElementById('cardContainer');
-            if(!container) return;
-            const cards = container.querySelectorAll('.keep-card');
-            cards.forEach(card => {
-                const content = card.querySelector('.card-content');
-                if (content) {
-                    const height = content.getBoundingClientRect().height;
-                    // spanを細かく計算 (1px grid)
-                    card.style.gridRowEnd = `span ${Math.ceil(height)}`;
                 }
             });
         }
@@ -438,9 +420,6 @@
         };
 
         window.onload = init;
-        window.onresize = resizeAllCards;
-        // タブ切り替え後の高さ再計算用
-        window.addEventListener('load', resizeAllCards);
     </script>
 </body>
 </html>
