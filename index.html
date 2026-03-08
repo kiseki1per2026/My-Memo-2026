@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro - Cloud Sync Fix</title>
+    <title>My Memo Pro - Cloud Sync Stable</title>
     
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,6 +18,7 @@
         import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
+        // Firebase設定の読み込み
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -29,9 +30,13 @@
         window.auth = auth;
 
         let currentTabId = 'tab1';
-        let appState = { data: {}, tabs: { tab1: 'メイン', tab2: '店舗別', tab3: '予備', tab4: 'リスト' } };
+        let appState = { 
+            data: { tab1: [], tab2: [], tab3: [], tab4: [] }, 
+            tabs: { tab1: 'メイン', tab2: '店舗別', tab3: '予備', tab4: 'リスト' } 
+        };
         let currentUser = null;
         let unsubscribe = null;
+        let isCloudConnected = false;
 
         const COLORS = [
             { name: 'white', class: 'bg-white' }, { name: 'red', class: 'bg-red' },
@@ -41,67 +46,103 @@
             { name: 'gray', class: 'bg-gray' }
         ];
 
-        // 1. 認証の初期化 (RULE 3 準拠)
-        async function initAuth() {
+        // 1. 認証と初期化（タイムアウト付き）
+        async function startApp() {
+            const statusText = document.getElementById('statusMessage');
+            
+            // 3秒経っても接続できない場合はローカルで表示を試みる
+            const timeout = setTimeout(() => {
+                if (!isCloudConnected) {
+                    statusText.innerText = "接続が遅いためローカルモードで起動します...";
+                    loadLocalFallback();
+                }
+            }, 3500);
+
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
+                clearTimeout(timeout);
             } catch (error) {
                 console.error("Auth Error:", error);
-                document.getElementById('userIdDisplay').innerText = "接続エラー。再読み込みしてください。";
+                statusText.innerText = "認証エラー。オフラインで動作します。";
+                loadLocalFallback();
             }
         }
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
+                isCloudConnected = true;
                 document.getElementById('userIdDisplay').innerText = `ID: ${user.uid}`;
                 setupSync(user.uid);
             }
         });
 
-        // 2. クラウド同期 (RULE 1 準拠)
+        // ローカルのバックアップから読み込む（接続失敗時用）
+        function loadLocalFallback() {
+            const localData = localStorage.getItem('memo_pro_v14_data');
+            const localTabs = localStorage.getItem('memo_pro_v14_tabs');
+            if (localData) {
+                appState.data = JSON.parse(localData);
+                if (localTabs) appState.tabs = JSON.parse(localTabs);
+            }
+            renderTabs();
+            renderCards();
+        }
+
+        // 2. クラウド同期
         function setupSync(uid) {
             const docRef = doc(db, 'artifacts', appId, 'users', uid, 'settings', 'main');
             
-            // ローカルデータの初回移行
+            // 初回データ移行（ローカルに古いデータがある場合）
             const localData = localStorage.getItem('memo_pro_v14_data');
             if (localData) {
                 const data = JSON.parse(localData);
                 const localTabs = localStorage.getItem('memo_pro_v14_tabs');
                 const tabs = localTabs ? JSON.parse(localTabs) : appState.tabs;
                 setDoc(docRef, { data, tabs }, { merge: true });
-                localStorage.removeItem('memo_pro_v14_data');
+                localStorage.removeItem('memo_pro_v14_data'); // アップロード完了後に消去
             }
 
             if (unsubscribe) unsubscribe();
             unsubscribe = onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const cloudData = docSnap.data();
-                    appState.data = cloudData.data || {};
+                    appState.data = cloudData.data || { tab1: [], tab2: [], tab3: [], tab4: [] };
                     appState.tabs = cloudData.tabs || appState.tabs;
                     renderTabs();
                     renderCards();
                 } else {
+                    // クラウドにデータがまだ無い場合は現在の状態を保存
                     saveToCloud();
+                    renderTabs();
+                    renderCards();
                 }
             }, (err) => {
-                console.error("Firestore Listen Error:", err);
+                console.error("Sync Error:", err);
+                loadLocalFallback();
             });
         }
 
         async function saveToCloud() {
             if (!currentUser) return;
             const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'settings', 'main');
-            await setDoc(docRef, { data: appState.data, tabs: appState.tabs }, { merge: true });
+            try {
+                await setDoc(docRef, { data: appState.data, tabs: appState.tabs }, { merge: true });
+            } catch (e) {
+                console.error("Save Error:", e);
+                // 保存に失敗した場合は念のためローカルにも残す
+                localStorage.setItem('memo_pro_v14_data_bk', JSON.stringify(appState.data));
+            }
         }
 
-        // 3. UIロジック
+        // --- UI ---
         window.renderTabs = () => {
             const tabBar = document.getElementById('tabBar');
+            if (!tabBar) return;
             tabBar.innerHTML = '';
             Object.keys(appState.tabs).forEach(id => {
                 const isActive = currentTabId === id;
@@ -129,6 +170,7 @@
 
         window.renderCards = () => {
             const container = document.getElementById('cardContainer');
+            if (!container) return;
             container.innerHTML = '';
             const cards = appState.data[currentTabId] || [];
             
@@ -179,7 +221,7 @@
             });
         };
 
-        // イベント系
+        // 操作ハンドラ
         window.addItem = (cardId) => {
             const input = document.getElementById(`input-${cardId}`);
             const text = input.value.trim();
@@ -242,7 +284,7 @@
 
         window.resizeAllGridItems = () => {
             const container = document.getElementById('cardContainer');
-            if(!container) return;
+            if(!container || container.querySelector('.animate-spin')) return;
             const rowHeight = parseInt(window.getComputedStyle(container).getPropertyValue('grid-auto-rows'));
             const rowGap = parseInt(window.getComputedStyle(container).getPropertyValue('grid-row-gap')) || 0;
             
@@ -262,36 +304,35 @@
             temp.select();
             document.execCommand('copy');
             document.body.removeChild(temp);
-            alert("IDをコピーしました。他端末の「他端末と同期」で貼り付けてください。");
+            alert("IDをコピーしました。");
         };
 
         window.syncWithOtherDevice = async () => {
-            const otherId = prompt("他端末でコピーしたIDを入力してください：");
+            const otherId = prompt("他端末のIDを入力してください：");
             if (otherId && otherId.trim()) {
                 const docRef = doc(db, 'artifacts', appId, 'users', otherId.trim(), 'settings', 'main');
-                const snap = await getDoc(docRef);
-                if (snap.exists()) {
-                    if (confirm("入力されたIDのデータに切り替えますか？現在のデータは上書きされます。")) {
-                        setupSync(otherId.trim());
-                        alert("同期しました！");
-                    }
-                } else {
-                    alert("指定されたIDのデータが見つかりません。");
-                }
+                try {
+                    const snap = await getDoc(docRef);
+                    if (snap.exists()) {
+                        if (confirm("入力されたIDのデータに切り替えますか？")) {
+                            setupSync(otherId.trim());
+                        }
+                    } else { alert("IDが見つかりませんでした。"); }
+                } catch(e) { alert("アクセス権限がないか、エラーが発生しました。"); }
             }
         };
 
-        window.onload = () => {
-            initAuth();
+        window.addEventListener('load', () => {
+            startApp();
             window.onresize = window.resizeAllGridItems;
             const observer = new MutationObserver(window.resizeAllGridItems);
             observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-        };
+        });
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans JP', sans-serif; -webkit-tap-highlight-color: transparent; }
-        #cardContainer { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1px; gap: 0 12px; align-items: start; }
+        #cardContainer { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1px; gap: 0 12px; align-items: start; min-height: 50vh; }
         @media (min-width: 768px) { #cardContainer { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 20px; } }
         .keep-card { border-radius: 16px; margin-bottom: 12px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.08); overflow: hidden; height: fit-content; }
         .drag-handle { cursor: grab; padding: 8px 12px; opacity: 0.3; }
@@ -331,14 +372,20 @@
                 <h1 class="font-bold text-base tracking-tight">My Memo Pro Cloud</h1>
             </div>
         </div>
-        <div id="tabBar" class="flex overflow-x-auto no-scrollbar px-2 border-t border-gray-50 dark:border-gray-700 items-center"></div>
+        <div id="tabBar" class="flex overflow-x-auto no-scrollbar px-2 border-t border-gray-50 dark:border-gray-700 items-center">
+            <!-- Loading skeleton for tabs -->
+            <div class="animate-pulse flex space-x-4 p-2">
+                <div class="h-8 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div class="h-8 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+        </div>
     </header>
 
     <main class="max-w-7xl mx-auto p-3 md:p-6 mt-2">
         <div id="cardContainer">
             <div class="col-span-2 text-center py-20 text-gray-400">
-                <div class="animate-spin inline-block mb-4"><i data-lucide="refresh-cw"></i></div>
-                <p>クラウドに接続中...</p>
+                <div class="animate-spin inline-block mb-4"><i data-lucide="refresh-cw" class="w-8 h-8"></i></div>
+                <p id="statusMessage">クラウドに接続中...</p>
             </div>
         </div>
     </main>
