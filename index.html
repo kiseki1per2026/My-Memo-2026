@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro - Ultimate Masonry</title>
+    <title>My Memo Pro - Perfect Masonry</title>
     
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,35 +34,34 @@
             overflow-x: hidden;
         }
 
-        /* 究極版：Masonry（タイル状）レイアウト */
+        /* 改良版 Masonry レイアウト */
         #cardContainer {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* スマホ2列固定 */
-            grid-auto-rows: 5px; /* 高さを5px単位で細かく制御 */
-            gap: 12px;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: 1px; /* 1px単位で極限まで細かく制御 */
+            gap: 0 12px; /* 横の隙間だけ設定。縦は grid-row-end で制御 */
             align-items: start;
         }
 
         @media (min-width: 768px) {
             #cardContainer {
                 grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                gap: 20px;
+                gap: 0 20px;
             }
         }
 
         .keep-card { 
             border-radius: 16px;
+            margin-bottom: 12px; /* カード同士の縦の隙間 */
             transition: transform 0.2s ease, box-shadow 0.2s ease; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             border: 1px solid rgba(0,0,0,0.08);
             background-clip: padding-box;
             overflow: hidden;
-            /* grid-row-end は JS で動的に設定 */
+            height: fit-content;
         }
 
-        .sortable-ghost {
-            opacity: 0.1;
-        }
+        .sortable-ghost { opacity: 0.1; }
 
         .drag-handle { 
             cursor: grab; 
@@ -109,7 +108,6 @@
 
         .color-dot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0; }
 
-        /* カラーバリエーション */
         .bg-white { background-color: #ffffff; color: #1f2937; }
         .bg-red { background-color: #fee2e2; color: #7f1d1d; }
         .bg-orange { background-color: #ffedd5; color: #9a3412; }
@@ -173,18 +171,18 @@
         ];
 
         function init() {
-            const localData = localStorage.getItem('memo_pro_v13_data');
-            const localTabs = localStorage.getItem('memo_pro_v13_tabs');
+            const localData = localStorage.getItem('memo_pro_v14_data');
+            const localTabs = localStorage.getItem('memo_pro_v14_tabs');
             
             if (!localData) {
-                const oldKeys = ['memo_pro_v12_data', 'memo_pro_v11_data', 'memo_pro_v10_data'];
+                const oldKeys = ['memo_pro_v13_data', 'memo_pro_v12_data', 'memo_pro_v11_data'];
                 let oldFound = null;
                 for(let key of oldKeys) {
                     const d = localStorage.getItem(key);
                     if(d) { oldFound = d; break; }
                 }
                 appData = oldFound ? JSON.parse(oldFound) : { tab1: [], tab2: [], tab3: [], tab4: [] };
-                const oldTabs = localStorage.getItem('memo_pro_v12_tabs') || localStorage.getItem('memo_pro_v11_tabs');
+                const oldTabs = localStorage.getItem('memo_pro_v13_tabs') || localStorage.getItem('memo_pro_v12_tabs');
                 if(oldTabs) tabNames = JSON.parse(oldTabs);
             } else {
                 appData = JSON.parse(localData);
@@ -202,14 +200,15 @@
                 appData[tab].forEach(card => {
                     if (!card.id) card.id = 'c' + Math.random().toString(36).substr(2, 9);
                     if (!card.items) card.items = [];
+                    card.items.forEach(it => { if(!it.id) it.id = 'it'+Math.random().toString(36).substr(2,9); });
                 });
             });
         }
 
         function save() {
-            localStorage.setItem('memo_pro_v13_data', JSON.stringify(appData));
-            localStorage.setItem('memo_pro_v13_tabs', JSON.stringify(tabNames));
-            resizeMasonry();
+            localStorage.setItem('memo_pro_v14_data', JSON.stringify(appData));
+            localStorage.setItem('memo_pro_v14_tabs', JSON.stringify(tabNames));
+            resizeAllGridItems();
         }
 
         function renderTabs() {
@@ -346,7 +345,11 @@
                 container.appendChild(div);
             });
             lucide.createIcons();
-            setTimeout(resizeMasonry, 50);
+            
+            // 描画後すぐに計算、さらに少し遅れて再計算（確実性のため）
+            resizeAllGridItems();
+            setTimeout(resizeAllGridItems, 50);
+            setTimeout(resizeAllGridItems, 300);
 
             if (sortableInstance) sortableInstance.destroy();
             sortableInstance = new Sortable(container, { 
@@ -358,20 +361,24 @@
                     const newOrder = Array.from(container.querySelectorAll('.keep-card')).map(el => findCard(el.dataset.id));
                     appData[currentTabId] = newOrder;
                     save();
+                    resizeAllGridItems();
                 }
             });
         }
 
-        // 重要：タイル状に隙間を埋めるための高さ計算
-        function resizeMasonry() {
+        // 高さを計算してグリッドの行数を設定する
+        function resizeGridItem(item) {
             const container = document.getElementById('cardContainer');
-            const cards = container.querySelectorAll('.keep-card');
-            cards.forEach(card => {
-                const inner = card.querySelector('.card-inner');
-                const height = inner.getBoundingClientRect().height;
-                const rowSpan = Math.ceil((height + 12) / 5); // 5pxグリッドに合わせる
-                card.style.gridRowEnd = `span ${rowSpan}`;
-            });
+            const rowHeight = parseInt(window.getComputedStyle(container).getPropertyValue('grid-auto-rows'));
+            const rowGap = parseInt(window.getComputedStyle(container).getPropertyValue('grid-row-gap')) || 0;
+            const contentHeight = item.querySelector('.card-inner').getBoundingClientRect().height;
+            const rowSpan = Math.ceil((contentHeight + rowGap + 12) / (rowHeight + rowGap));
+            item.style.gridRowEnd = "span " + rowSpan;
+        }
+
+        function resizeAllGridItems() {
+            const allItems = document.querySelectorAll(".keep-card");
+            allItems.forEach(item => resizeGridItem(item));
         }
 
         window.exportData = () => {
@@ -397,7 +404,11 @@
         };
 
         window.onload = init;
-        window.onresize = resizeMasonry;
+        window.onresize = resizeAllGridItems;
+
+        // 内容の変更を監視して高さを自動更新
+        const observer = new MutationObserver(resizeAllGridItems);
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     </script>
 </body>
 </html>
