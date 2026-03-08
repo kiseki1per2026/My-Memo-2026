@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro</title>
+    <title>My Memo Pro - Functional</title>
     
     <!-- PWA & Mobile Meta -->
     <meta name="theme-color" content="#f97316">
@@ -16,7 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
         tailwind.config = {
-            darkMode: 'media', // スマホの設定に合わせて自動でダークモード切替
+            darkMode: 'media',
             theme: {
                 extend: {
                     colors: {
@@ -51,7 +51,7 @@
 
         .keep-card { 
             grid-row-end: span 10;
-            border-radius: 20px; /* 丸みを強調 */
+            border-radius: 20px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
             overflow: hidden;
             display: flex;
@@ -64,13 +64,14 @@
 
         .keep-card:hover { 
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            transform: translateY(-2px); /* ホバー時に少し浮く */
+            transform: translateY(-2px);
         }
 
         .drag-handle { cursor: grab; padding: 8px; opacity: 0.4; transition: opacity 0.2s; }
         .drag-handle:hover { opacity: 1; }
 
         .checked-text { text-decoration: line-through; opacity: 0.5; }
+        .date-badge { font-size: 0.65rem; padding: 1px 4px; border-radius: 4px; background: rgba(0,0,0,0.05); margin-left: 6px; }
 
         .tab-btn { 
             padding: 14px 18px; 
@@ -131,6 +132,7 @@
             .bg-pink { background-color: #500724; color: #fbcfe8; }
             .bg-brown { background-color: #1c1917; color: #d6d3d1; }
             .bg-gray { background-color: #111827; color: #e5e7eb; }
+            .date-badge { background: rgba(255,255,255,0.1); color: #9ca3af; }
         }
 
         [contenteditable]:focus {
@@ -140,14 +142,10 @@
             padding: 0 4px;
             margin: 0 -4px;
         }
-        @media (prefers-color-scheme: dark) {
-            [contenteditable]:focus { background: rgba(255,255,255,0.1); }
-        }
     </style>
 </head>
 <body class="pb-32 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition-colors duration-300">
 
-    <!-- ヘッダー（すりガラス効果つき） -->
     <header class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200 dark:border-gray-700 transition-colors">
         <div class="max-w-7xl mx-auto px-4 flex items-center h-16">
             <div class="flex items-center space-x-3 flex-1">
@@ -174,7 +172,6 @@
         <div id="cardContainer"></div>
     </main>
 
-    <!-- 大きくて押しやすい追加ボタン -->
     <button onclick="addNewCard()" class="fixed bottom-8 right-8 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-5 rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all z-40">
         <i data-lucide="plus" class="w-8 h-8"></i>
     </button>
@@ -195,14 +192,13 @@
         ];
 
         const initialData = {
-            'tab1': [{ id: 'm1', title: '歓迎！', color: 'bg-white', items: [{text: '項目をタップで完了', checked: false}, {text: '右下の＋ボタンでメモ追加', checked: false}] }],
+            'tab1': [{ id: 'm1', title: '機能ガイド', color: 'bg-white', items: [{text: 'チェックすると一番下へ', checked: false}, {text: '完了日時が自動でつきます', checked: false}] }],
             'tab2': [], 'tab3': [], 'tab4': []
         };
 
         function init() {
-            // ここでLocalStorage（スマホ内保存）からデータを読み込んでいます
-            const localData = localStorage.getItem('memo_pro_v6_data');
-            const localTabs = localStorage.getItem('memo_pro_v6_tabs');
+            const localData = localStorage.getItem('memo_pro_v7_data');
+            const localTabs = localStorage.getItem('memo_pro_v7_tabs');
             appData = localData ? JSON.parse(localData) : initialData;
             if (localTabs) tabNames = JSON.parse(localTabs);
             renderTabs();
@@ -216,12 +212,10 @@
                 const isActive = currentTabId === id;
                 const btn = document.createElement('div');
                 btn.className = `tab-btn whitespace-nowrap opacity-70 hover:opacity-100 ${isActive ? 'active opacity-100' : ''}`;
-                
                 const span = document.createElement('span');
                 span.innerText = tabNames[id];
                 span.onclick = () => switchTab(id);
                 btn.appendChild(span);
-                
                 if (isActive) {
                     const editIcon = document.createElement('button');
                     editIcon.className = "ml-2 p-1.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors";
@@ -239,7 +233,7 @@
                 const newName = window.prompt('カテゴリ名を変更', tabNames[id]);
                 if (newName && newName.trim()) {
                     tabNames[id] = newName.trim();
-                    localStorage.setItem('memo_pro_v6_tabs', JSON.stringify(tabNames));
+                    localStorage.setItem('memo_pro_v7_tabs', JSON.stringify(tabNames));
                     renderTabs();
                 }
             }, 50);
@@ -270,9 +264,8 @@
             });
         }
 
-        // データを保存する関数（毎回呼ばれます）
         function save() {
-            localStorage.setItem('memo_pro_v6_data', JSON.stringify(appData));
+            localStorage.setItem('memo_pro_v7_data', JSON.stringify(appData));
             resizeAllCards();
         }
 
@@ -286,8 +279,20 @@
 
         window.toggleItem = (cardId, idx) => {
             const card = findCard(cardId);
-            card.items[idx].checked = !card.items[idx].checked;
+            const item = card.items[idx];
+            item.checked = !item.checked;
+            
+            // 購入日（完了日時）の記録
+            if (item.checked) {
+                const now = new Date();
+                item.date = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            } else {
+                delete item.date;
+            }
+
+            // チェック済みを一番下にする並び替え
             card.items.sort((a,b) => (a.checked === b.checked) ? 0 : a.checked ? 1 : -1);
+            
             save();
             renderCards();
         };
@@ -304,7 +309,13 @@
             const text = input.value.trim();
             if (text) {
                 const card = findCard(cardId);
-                card.items.push({ text: text, checked: false });
+                // 新しい項目は未完了リストの最後（完了済み項目の手前）に追加
+                const firstCheckedIdx = card.items.findIndex(it => it.checked);
+                if (firstCheckedIdx === -1) {
+                    card.items.push({ text: text, checked: false });
+                } else {
+                    card.items.splice(firstCheckedIdx, 0, { text: text, checked: false });
+                }
                 input.value = '';
                 save();
                 renderCards();
@@ -363,8 +374,6 @@
                 const el = document.createElement('div');
                 el.className = `keep-card group ${card.color}`;
                 el.dataset.id = card.id;
-                
-                // カード内のデザインも大きくモダンに刷新
                 el.innerHTML = `
                     <div class="card-content p-4 md:p-5">
                         <div class="flex items-start mb-3 gap-1">
@@ -378,17 +387,22 @@
                                     <button class="mt-0.5 mr-3 flex-shrink-0 opacity-70 transition-transform active:scale-90">
                                         <i data-lucide="${it.checked ? 'check-circle-2' : 'circle'}" class="w-5 h-5 ${it.checked ? 'text-orange-500 opacity-100' : ''}"></i>
                                     </button>
-                                    <span class="text-base flex-1 break-all ${it.checked ? 'checked-text' : ''}">${it.text}</span>
+                                    <div class="flex-1 flex flex-col">
+                                        <div class="flex items-center">
+                                            <span class="text-base break-all ${it.checked ? 'checked-text' : ''}">${it.text}</span>
+                                            ${it.date ? `<span class="date-badge">${it.date}</span>` : ''}
+                                        </div>
+                                    </div>
                                     <button onclick="deleteItem('${card.id}', ${i}, event)" class="p-1.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-all ml-1"><i data-lucide="x" class="w-4 h-4"></i></button>
                                 </div>
                             `).join('')}
                         </div>
                         <div class="mt-2 flex items-center gap-2 border-b border-black/10 dark:border-white/10 focus-within:border-orange-500 transition-colors pb-1">
-                            <input type="text" id="input-${card.id}" placeholder="＋ アイテムを追加" 
+                            <input type="text" id="input-${card.id}" placeholder="＋ 追加" 
                                    class="bg-transparent text-sm py-2.5 flex-1 focus:outline-none opacity-80" 
                                    onkeydown="if(event.key==='Enter'){ addItem('${card.id}'); }">
                             <button onclick="addItem('${card.id}')" class="p-2 opacity-50 hover:opacity-100 hover:text-orange-500 transition-colors">
-                                <i data-lucide="corner-down-left" class="w-5 h-5"></i>
+                                <i data-lucide="plus-circle" class="w-5 h-5"></i>
                             </button>
                         </div>
                         <div class="mt-4 flex flex-wrap gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -429,8 +443,8 @@
                         } else {
                             appData = imported;
                         }
-                        localStorage.setItem('memo_pro_v6_data', JSON.stringify(appData));
-                        localStorage.setItem('memo_pro_v6_tabs', JSON.stringify(tabNames));
+                        localStorage.setItem('memo_pro_v7_data', JSON.stringify(appData));
+                        localStorage.setItem('memo_pro_v7_tabs', JSON.stringify(tabNames));
                         renderTabs();
                         renderCards();
                         alert("データを復元しました。");
