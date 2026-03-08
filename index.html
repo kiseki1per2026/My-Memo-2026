@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro - Fixed</title>
+    <title>My Memo Pro - Ultimate</title>
     
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -31,35 +31,46 @@
             font-family: 'Noto Sans JP', sans-serif; 
             -webkit-tap-highlight-color: transparent; 
             touch-action: pan-y;
+            overflow-x: hidden;
         }
 
+        /* タイルレイアウト用コンテナ */
         #cardContainer {
             display: grid;
             grid-template-columns: repeat(2, 1fr); 
-            grid-auto-rows: 8px;
+            grid-auto-rows: 1px; /* 1px単位で細かく計算 */
             gap: 12px;
+            align-items: start;
         }
 
         @media (min-width: 768px) {
             #cardContainer {
                 grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                gap: 20px;
+                gap: 16px;
             }
         }
 
         .keep-card { 
-            grid-row-end: span 10;
-            border-radius: 20px;
-            transition: all 0.3s ease; 
+            border-radius: 16px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease; 
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.08);
+            background-clip: padding-box;
             height: fit-content;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(0,0,0,0.05);
         }
 
-        .drag-handle { cursor: grab; padding: 8px; opacity: 0.3; }
+        /* ドラッグハンドルの視認性向上 */
+        .drag-handle { 
+            cursor: grab; 
+            padding: 8px 12px; 
+            opacity: 0.4; 
+            display: flex;
+            align-items: center;
+        }
+        .drag-handle:active { cursor: grabbing; }
 
         .item-row.checked { 
             background-color: rgba(0, 0, 0, 0.04) !important; 
@@ -68,10 +79,10 @@
         .checked-text { text-decoration: line-through; color: #9ca3af; }
         
         .date-badge { 
-            font-size: 0.7rem; 
+            font-size: 0.65rem; 
             font-weight: bold;
-            padding: 2px 6px; 
-            border-radius: 6px; 
+            padding: 1px 5px; 
+            border-radius: 4px; 
             background: #f97316; 
             color: white;
             margin-left: auto;
@@ -79,22 +90,25 @@
         }
 
         .tab-btn { 
-            padding: 14px 18px; 
+            padding: 12px 16px; 
             font-weight: 500; 
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.2s;
             border-bottom: 3px solid transparent;
+            flex-shrink: 0;
         }
 
         .tab-btn.active { 
             color: #f97316; 
             border-bottom: 3px solid #f97316;
             background-color: rgba(249, 115, 22, 0.05);
+            opacity: 1 !important;
         }
 
-        .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); }
+        .color-dot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0; }
 
+        /* カラーバリエーション */
         .bg-white { background-color: #ffffff; color: #1f2937; }
         .bg-red { background-color: #fee2e2; color: #7f1d1d; }
         .bg-orange { background-color: #ffedd5; color: #9a3412; }
@@ -113,31 +127,33 @@
             .bg-gray { background-color: #111827; color: #e5e7eb; }
             .item-row.checked { background-color: rgba(255, 255, 255, 0.05) !important; }
         }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 pb-24 transition-colors">
+<body class="bg-gray-50 dark:bg-gray-900 pb-28 transition-colors">
 
-    <header class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200 dark:border-gray-700">
+    <header class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 flex items-center h-14">
             <div class="flex items-center space-x-2 flex-1">
-                <div class="bg-orange-500 p-1.5 rounded-lg text-white">
+                <div class="bg-orange-500 p-1 rounded-lg text-white">
                     <i data-lucide="check-square" class="w-5 h-5"></i>
                 </div>
-                <h1 class="font-bold text-lg">My Memo Pro</h1>
+                <h1 class="font-bold text-base md:text-lg tracking-tight">My Memo Pro</h1>
             </div>
             <div class="flex space-x-1">
-                <button onclick="exportData()" class="p-2 text-gray-400 hover:text-orange-500"><i data-lucide="download" class="w-5 h-5"></i></button>
-                <button onclick="importData()" class="p-2 text-gray-400 hover:text-orange-500"><i data-lucide="upload" class="w-5 h-5"></i></button>
+                <button onclick="exportData()" class="p-2 text-gray-400 hover:text-orange-500 transition-colors"><i data-lucide="download" class="w-5 h-5"></i></button>
+                <button onclick="importData()" class="p-2 text-gray-400 hover:text-orange-500 transition-colors"><i data-lucide="upload" class="w-5 h-5"></i></button>
             </div>
         </div>
-        <div id="tabBar" class="flex overflow-x-auto no-scrollbar px-2 border-t border-gray-50 dark:border-gray-700"></div>
+        <div id="tabBar" class="flex overflow-x-auto no-scrollbar px-2 border-t border-gray-50 dark:border-gray-700 items-center"></div>
     </header>
 
     <main class="max-w-7xl mx-auto p-3 md:p-6 mt-2">
         <div id="cardContainer"></div>
     </main>
 
-    <button onclick="addNewCard()" class="fixed bottom-6 right-6 bg-orange-500 text-white p-4 rounded-2xl shadow-lg active:scale-95 transition-all z-40">
+    <button onclick="addNewCard()" class="fixed bottom-6 right-6 bg-orange-500 text-white p-4 rounded-2xl shadow-lg active:scale-90 transition-all z-40">
         <i data-lucide="plus" class="w-7 h-7"></i>
     </button>
 
@@ -145,6 +161,7 @@
         let currentTabId = 'tab1';
         let appData = {};
         let tabNames = { tab1: 'メイン', tab2: '店舗別', tab3: '予備', tab4: 'リスト' };
+        let sortableInstance = null;
 
         const COLORS = [
             { name: 'white', class: 'bg-white' }, { name: 'red', class: 'bg-red' },
@@ -155,31 +172,34 @@
         ];
 
         function init() {
-            const localData = localStorage.getItem('memo_pro_v9_data');
-            const localTabs = localStorage.getItem('memo_pro_v9_tabs');
+            // ストレージキーを更新してクリーンに
+            const localData = localStorage.getItem('memo_pro_v10_data');
+            const localTabs = localStorage.getItem('memo_pro_v10_tabs');
             
-            // 旧バージョンからの移行対応
             if (!localData) {
-                const oldData = localStorage.getItem('memo_pro_v8_data') || localStorage.getItem('memo_pro_v7_data');
-                if (oldData) {
-                    appData = JSON.parse(oldData);
-                    fixIds(); // IDの自動付与
-                } else {
-                    appData = { tab1: [], tab2: [], tab3: [], tab4: [] };
+                // 旧バージョンからの自動移行
+                const oldKeys = ['memo_pro_v9_data', 'memo_pro_v8_data', 'memo_pro_v7_data'];
+                let oldFound = null;
+                for(let key of oldKeys) {
+                    const d = localStorage.getItem(key);
+                    if(d) { oldFound = d; break; }
                 }
+                appData = oldFound ? JSON.parse(oldFound) : { tab1: [], tab2: [], tab3: [], tab4: [] };
+                const oldTabs = localStorage.getItem('memo_pro_v9_tabs') || localStorage.getItem('memo_pro_v8_tabs');
+                if(oldTabs) tabNames = JSON.parse(oldTabs);
             } else {
                 appData = JSON.parse(localData);
-                fixIds();
+                if (localTabs) tabNames = JSON.parse(localTabs);
             }
 
-            if (localTabs) tabNames = JSON.parse(localTabs);
+            fixIds();
             renderTabs();
             renderCards();
         }
 
-        // データの不備（IDがない等）を自動修正する関数
         function fixIds() {
             Object.keys(appData).forEach(tab => {
+                if(!Array.isArray(appData[tab])) appData[tab] = [];
                 appData[tab].forEach(card => {
                     if (!card.id) card.id = 'c' + Math.random().toString(36).substr(2, 9);
                     if (!card.items) card.items = [];
@@ -191,7 +211,8 @@
         }
 
         function save() {
-            localStorage.setItem('memo_pro_v9_data', JSON.stringify(appData));
+            localStorage.setItem('memo_pro_v10_data', JSON.stringify(appData));
+            localStorage.setItem('memo_pro_v10_tabs', JSON.stringify(tabNames));
             resizeAllCards();
         }
 
@@ -201,11 +222,11 @@
             Object.keys(tabNames).forEach(id => {
                 const isActive = currentTabId === id;
                 const btn = document.createElement('div');
-                btn.className = `tab-btn ${isActive ? 'active' : 'opacity-50'}`;
+                btn.className = `tab-btn ${isActive ? 'active' : 'opacity-40'}`;
                 btn.innerHTML = `<span onclick="switchTab('${id}')">${tabNames[id]}</span>`;
                 if (isActive) {
                     const edit = document.createElement('button');
-                    edit.className = "ml-2 opacity-50";
+                    edit.className = "ml-2 opacity-40 hover:opacity-100 p-1";
                     edit.innerHTML = `<i data-lucide="pencil" class="w-3 h-3"></i>`;
                     edit.onclick = () => renameTab(id);
                     btn.appendChild(edit);
@@ -216,11 +237,19 @@
         }
 
         function renameTab(id) {
-            const name = prompt('名前を変更', tabNames[id]);
-            if (name) { tabNames[id] = name; localStorage.setItem('memo_pro_v9_tabs', JSON.stringify(tabNames)); renderTabs(); }
+            const name = prompt('カテゴリ名を変更', tabNames[id]);
+            if (name && name.trim()) { 
+                tabNames[id] = name.trim(); 
+                save(); 
+                renderTabs(); 
+            }
         }
 
-        function switchTab(id) { currentTabId = id; renderTabs(); renderCards(); }
+        function switchTab(id) { 
+            currentTabId = id; 
+            renderTabs(); 
+            renderCards(); 
+        }
 
         window.toggleItem = (cardId, itemId) => {
             const card = findCard(cardId);
@@ -229,7 +258,6 @@
             if (!item) return;
 
             item.checked = !item.checked;
-            
             if (item.checked) {
                 const now = new Date();
                 item.date = `${now.getMonth()+1}/${now.getDate()}`;
@@ -239,7 +267,7 @@
                 delete item.timestamp;
             }
 
-            // 並び替え：未完了が上、完了したものは完了した順に下へ
+            // チェック済みを最後尾へ
             card.items.sort((a, b) => {
                 if (a.checked !== b.checked) return a.checked ? 1 : -1;
                 if (a.checked && b.checked) return (a.timestamp || 0) - (b.timestamp || 0);
@@ -256,8 +284,6 @@
             if (text) {
                 const card = findCard(cardId);
                 const newItem = { id: 'it' + Date.now(), text: text, checked: false };
-                
-                // 完了済み項目の手前に挿入
                 const firstCheckedIdx = card.items.findIndex(it => it.checked);
                 if (firstCheckedIdx === -1) card.items.push(newItem);
                 else card.items.splice(firstCheckedIdx, 0, newItem);
@@ -279,15 +305,12 @@
 
         window.updateTitle = (cardId, val) => { 
             const card = findCard(cardId);
-            if (card) card.title = val; 
-            save(); 
+            if (card && card.title !== val) { card.title = val; save(); }
         };
 
         window.updateColor = (cardId, color) => { 
             const card = findCard(cardId);
-            if (card) card.color = color; 
-            save(); 
-            renderCards(); 
+            if (card) { card.color = color; save(); renderCards(); }
         };
 
         window.deleteCard = (cardId) => { 
@@ -306,7 +329,9 @@
             renderCards();
         };
 
-        function findCard(id) { return appData[currentTabId].find(c => c.id === id); }
+        function findCard(id) { 
+            return (appData[currentTabId] || []).find(c => c.id === id); 
+        }
 
         function renderCards() {
             const container = document.getElementById('cardContainer');
@@ -320,15 +345,15 @@
                 div.dataset.id = card.id;
                 div.innerHTML = `
                     <div class="card-content p-4">
-                        <div class="flex items-center mb-2">
-                            <div class="drag-handle -ml-2 p-1 opacity-20 group-hover:opacity-100 transition-opacity"><i data-lucide="grip-vertical" class="w-4 h-4"></i></div>
-                            <div contenteditable="true" class="font-bold flex-1 outline-none text-base" onblur="updateTitle('${card.id}', this.innerText)">${card.title}</div>
-                            <button onclick="deleteCard('${card.id}')" class="opacity-0 group-hover:opacity-40 hover:text-red-500 hover:opacity-100 transition-all p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        <div class="flex items-center -mt-2 -mx-2 mb-1">
+                            <div class="drag-handle flex-1"><i data-lucide="grip-horizontal" class="w-4 h-4"></i></div>
+                            <button onclick="deleteCard('${card.id}')" class="opacity-0 group-hover:opacity-40 hover:text-red-500 hover:opacity-100 transition-all p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
+                        <div contenteditable="true" class="font-bold outline-none text-base mb-2 px-1" onblur="updateTitle('${card.id}', this.innerText)">${card.title}</div>
                         <div class="space-y-0.5">
                             ${card.items.map(it => `
                                 <div class="item-row flex items-center p-2 -mx-1 rounded-lg cursor-pointer transition-all ${it.checked ? 'checked' : ''}" onclick="toggleItem('${card.id}', '${it.id}')">
-                                    <i data-lucide="${it.checked ? 'check-circle' : 'circle'}" class="w-4 h-4 mr-2 ${it.checked ? 'text-orange-500' : 'opacity-30'}"></i>
+                                    <i data-lucide="${it.checked ? 'check-circle' : 'circle'}" class="w-4 h-4 mr-2 ${it.checked ? 'text-orange-500' : 'opacity-20'}"></i>
                                     <span class="text-sm flex-1 break-all ${it.checked ? 'checked-text' : ''}">${it.text}</span>
                                     ${it.date ? `<span class="date-badge">${it.date}</span>` : `<button onclick="deleteItem('${card.id}', '${it.id}', event)" class="opacity-0 group-hover:opacity-40 hover:opacity-100 p-1"><i data-lucide="x" class="w-3 h-3"></i></button>`}
                                 </div>
@@ -336,7 +361,7 @@
                         </div>
                         <div class="mt-3 flex items-center border-b border-black/5 dark:border-white/5 focus-within:border-orange-500">
                             <input type="text" id="input-${card.id}" placeholder="＋ 追加" class="bg-transparent text-sm w-full py-1.5 focus:outline-none" onkeydown="if(event.key==='Enter') addItem('${card.id}')">
-                            <button onclick="addItem('${card.id}')" class="p-1 opacity-30 hover:opacity-100 hover:text-orange-500"><i data-lucide="plus-circle" class="w-4 h-4"></i></button>
+                            <button onclick="addItem('${card.id}')" class="p-1 opacity-20 hover:opacity-100 hover:text-orange-500"><i data-lucide="plus-circle" class="w-4 h-4"></i></button>
                         </div>
                         <div class="mt-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity overflow-x-auto no-scrollbar pb-1">
                             ${COLORS.map(c => `<div onclick="updateColor('${card.id}', '${c.class}')" class="color-dot ${c.class}"></div>`).join('')}
@@ -348,9 +373,11 @@
             lucide.createIcons();
             setTimeout(resizeAllCards, 50);
             
-            new Sortable(container, { 
-                animation: 200, 
-                handle: '.drag-handle', 
+            if (sortableInstance) sortableInstance.destroy();
+            sortableInstance = new Sortable(container, { 
+                animation: 250, 
+                handle: '.drag-handle',
+                ghostClass: 'opacity-0',
                 onEnd: () => {
                     const newOrder = Array.from(container.querySelectorAll('.keep-card')).map(el => findCard(el.dataset.id));
                     appData[currentTabId] = newOrder;
@@ -360,11 +387,15 @@
         }
 
         function resizeAllCards() {
-            document.querySelectorAll('.keep-card').forEach(card => {
+            const container = document.getElementById('cardContainer');
+            if(!container) return;
+            const cards = container.querySelectorAll('.keep-card');
+            cards.forEach(card => {
                 const content = card.querySelector('.card-content');
                 if (content) {
                     const height = content.getBoundingClientRect().height;
-                    card.style.gridRowEnd = `span ${Math.ceil((height + 12) / 8)}`;
+                    // spanを細かく計算 (1px grid)
+                    card.style.gridRowEnd = `span ${Math.ceil(height)}`;
                 }
             });
         }
@@ -372,7 +403,10 @@
         window.exportData = () => {
             const dataStr = JSON.stringify({ data: appData, tabs: tabNames }, null, 2);
             const blob = new Blob([dataStr], {type: "application/json"});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `memo_backup.json`; a.click();
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(blob); 
+            a.download = `memo_backup.json`; 
+            a.click();
         };
 
         window.importData = () => {
@@ -389,11 +423,11 @@
                         } else {
                             appData = res;
                         }
-                        fixIds(); // インポート直後にID不備を修復
+                        fixIds();
                         save(); 
                         renderTabs(); 
                         renderCards();
-                        alert("データを読み込みました。");
+                        alert("バックアップを復元しました。");
                     } catch(err) {
                         alert("ファイルの読み込みに失敗しました。");
                     }
@@ -405,6 +439,8 @@
 
         window.onload = init;
         window.onresize = resizeAllCards;
+        // タブ切り替え後の高さ再計算用
+        window.addEventListener('load', resizeAllCards);
     </script>
 </body>
 </html>
