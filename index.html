@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro - Refined Tile</title>
+    <title>My Memo Pro - Stable Tile</title>
     
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,34 +34,41 @@
             overflow-x: hidden;
         }
 
-        /* 改良版：タイルレイアウト（Masonry風） */
+        /* 安定版：タイルレイアウト（Masonry） */
         #cardContainer {
-            column-count: 2; /* 2列表示 */
-            column-gap: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
             width: 100%;
-        }
-
-        @media (min-width: 768px) {
-            #cardContainer {
-                column-count: auto;
-                column-width: 280px;
-                column-gap: 20px;
-            }
+            align-items: flex-start;
         }
 
         .keep-card { 
-            display: inline-block; /* column-count内での分割を防ぐ */
-            width: 100%;
-            margin-bottom: 12px;
+            width: calc(50% - 6px); /* スマホで確実に2枚並ぶように固定 */
+            margin-bottom: 0px;
             border-radius: 16px;
-            transition: transform 0.2s ease; 
+            transition: transform 0.2s ease, box-shadow 0.2s ease; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             border: 1px solid rgba(0,0,0,0.08);
             background-clip: padding-box;
-            break-inside: avoid; /* カードが途中で切れないようにする */
+            height: auto;
         }
 
-        /* ドラッグハンドルの操作エリアを明確化 */
+        @media (min-width: 768px) {
+            .keep-card {
+                width: 280px;
+            }
+            #cardContainer {
+                gap: 20px;
+            }
+        }
+
+        /* ドラッグ中の見た目 */
+        .sortable-ghost {
+            opacity: 0.3;
+            transform: scale(0.95);
+        }
+
         .drag-handle { 
             cursor: grab; 
             padding: 8px 12px; 
@@ -171,19 +178,20 @@
         ];
 
         function init() {
-            const localData = localStorage.getItem('memo_pro_v11_data');
-            const localTabs = localStorage.getItem('memo_pro_v11_tabs');
+            // ストレージキーを更新
+            const localData = localStorage.getItem('memo_pro_v12_data');
+            const localTabs = localStorage.getItem('memo_pro_v12_tabs');
             
             if (!localData) {
-                // 旧バージョンからの自動移行
-                const oldKeys = ['memo_pro_v10_data', 'memo_pro_v9_data', 'memo_pro_v8_data'];
+                // 自動移行
+                const oldKeys = ['memo_pro_v11_data', 'memo_pro_v10_data', 'memo_pro_v9_data'];
                 let oldFound = null;
                 for(let key of oldKeys) {
                     const d = localStorage.getItem(key);
                     if(d) { oldFound = d; break; }
                 }
                 appData = oldFound ? JSON.parse(oldFound) : { tab1: [], tab2: [], tab3: [], tab4: [] };
-                const oldTabs = localStorage.getItem('memo_pro_v10_tabs') || localStorage.getItem('memo_pro_v9_tabs');
+                const oldTabs = localStorage.getItem('memo_pro_v11_tabs') || localStorage.getItem('memo_pro_v10_tabs');
                 if(oldTabs) tabNames = JSON.parse(oldTabs);
             } else {
                 appData = JSON.parse(localData);
@@ -209,8 +217,8 @@
         }
 
         function save() {
-            localStorage.setItem('memo_pro_v11_data', JSON.stringify(appData));
-            localStorage.setItem('memo_pro_v11_tabs', JSON.stringify(tabNames));
+            localStorage.setItem('memo_pro_v12_data', JSON.stringify(appData));
+            localStorage.setItem('memo_pro_v12_tabs', JSON.stringify(tabNames));
         }
 
         function renderTabs() {
@@ -235,18 +243,10 @@
 
         function renameTab(id) {
             const name = prompt('カテゴリ名を変更', tabNames[id]);
-            if (name && name.trim()) { 
-                tabNames[id] = name.trim(); 
-                save(); 
-                renderTabs(); 
-            }
+            if (name && name.trim()) { tabNames[id] = name.trim(); save(); renderTabs(); }
         }
 
-        function switchTab(id) { 
-            currentTabId = id; 
-            renderTabs(); 
-            renderCards(); 
-        }
+        function switchTab(id) { currentTabId = id; renderTabs(); renderCards(); }
 
         window.toggleItem = (cardId, itemId) => {
             const card = findCard(cardId);
@@ -264,7 +264,6 @@
                 delete item.timestamp;
             }
 
-            // 並び替え
             card.items.sort((a, b) => {
                 if (a.checked !== b.checked) return a.checked ? 1 : -1;
                 if (a.checked && b.checked) return (a.timestamp || 0) - (b.timestamp || 0);
@@ -326,9 +325,7 @@
             renderCards();
         };
 
-        function findCard(id) { 
-            return (appData[currentTabId] || []).find(c => c.id === id); 
-        }
+        function findCard(id) { return (appData[currentTabId] || []).find(c => c.id === id); }
 
         function renderCards() {
             const container = document.getElementById('cardContainer');
@@ -373,7 +370,8 @@
             sortableInstance = new Sortable(container, { 
                 animation: 250, 
                 handle: '.drag-handle',
-                ghostClass: 'opacity-20',
+                ghostClass: 'sortable-ghost',
+                forceFallback: true, // スマホでの挙動を安定させる
                 onEnd: () => {
                     const newOrder = Array.from(container.querySelectorAll('.keep-card')).map(el => findCard(el.dataset.id));
                     appData[currentTabId] = newOrder;
@@ -385,34 +383,19 @@
         window.exportData = () => {
             const dataStr = JSON.stringify({ data: appData, tabs: tabNames }, null, 2);
             const blob = new Blob([dataStr], {type: "application/json"});
-            const a = document.createElement('a'); 
-            a.href = URL.createObjectURL(blob); 
-            a.download = `memo_backup.json`; 
-            a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `memo_backup.json`; a.click();
         };
 
         window.importData = () => {
-            const input = document.createElement('input'); 
-            input.type = 'file';
+            const input = document.createElement('input'); input.type = 'file';
             input.onchange = e => {
                 const reader = new FileReader();
                 reader.onload = ev => {
                     try {
                         const res = JSON.parse(ev.target.result);
-                        if (res.data && res.tabs) {
-                            appData = res.data; 
-                            tabNames = res.tabs;
-                        } else {
-                            appData = res;
-                        }
-                        fixIds();
-                        save(); 
-                        renderTabs(); 
-                        renderCards();
-                        alert("バックアップを復元しました。");
-                    } catch(err) {
-                        alert("ファイルの読み込みに失敗しました。");
-                    }
+                        if (res.data && res.tabs) { appData = res.data; tabNames = res.tabs; } else { appData = res; }
+                        fixIds(); save(); renderTabs(); renderCards(); alert("バックアップを復元しました。");
+                    } catch(err) { alert("失敗しました。"); }
                 };
                 reader.readAsText(e.target.files[0]);
             };
