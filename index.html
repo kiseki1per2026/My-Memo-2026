@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro - Stable Move</title>
+    <title>My Memo Pro - Scroll Fix</title>
     
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,6 +17,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans JP', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f9fafb; }
         
+        /* タイル状レイアウト */
         #cardContainer { 
             display: grid; 
             grid-template-columns: repeat(2, 1fr); 
@@ -36,12 +37,18 @@
             border: 1px solid rgba(0,0,0,0.08); 
             overflow: hidden; 
             height: fit-content;
-            touch-action: none; /* SortableJSの動作を安定させる */
+            /* touch-action: none; は削除してスクロールを許可 */
+        }
+
+        /* グリップ部分のみドラッグを許可 */
+        .drag-handle {
+            touch-action: none;
+            cursor: grab;
         }
 
         /* ドラッグ中のスタイル */
         .sortable-ghost { opacity: 0.3; transform: scale(0.95); }
-        .sortable-drag { box-shadow: 0 10px 20px rgba(0,0,0,0.15); transform: rotate(2deg); }
+        .sortable-drag { box-shadow: 0 10px 20px rgba(0,0,0,0.15); transform: rotate(2deg); z-index: 100; }
 
         .item-row.checked { opacity: 0.5; background-color: rgba(0,0,0,0.03); }
         .checked-text { text-decoration: line-through; color: #9ca3af; }
@@ -95,8 +102,8 @@
                 <h1 class="font-bold text-base tracking-tight dark:text-white">My Memo Pro</h1>
             </div>
             <div class="flex gap-2">
-                <button onclick="exportData()" class="p-2 text-gray-400 hover:text-orange-500"><i data-lucide="download" class="w-5 h-5"></i></button>
-                <button onclick="importData()" class="p-2 text-gray-400 hover:text-orange-500"><i data-lucide="upload" class="w-5 h-5"></i></button>
+                <button onclick="exportData()" title="エクスポート" class="p-2 text-gray-400 hover:text-orange-500"><i data-lucide="download" class="w-5 h-5"></i></button>
+                <button onclick="importData()" title="インポート" class="p-2 text-gray-400 hover:text-orange-500"><i data-lucide="upload" class="w-5 h-5"></i></button>
             </div>
         </div>
         <div id="tabBar" class="flex overflow-x-auto no-scrollbar px-2 border-t border-gray-50 dark:border-gray-700 items-center"></div>
@@ -187,8 +194,8 @@
                 cardEl.innerHTML = `
                     <div class="card-inner p-4">
                         <div class="flex items-center justify-between -mt-1 mb-2">
-                            <div class="drag-handle p-2 -ml-2 opacity-20 group-hover:opacity-60 cursor-grab active:cursor-grabbing">
-                                <i data-lucide="grip-horizontal" class="w-4 h-4"></i>
+                            <div class="drag-handle p-2 -ml-2 opacity-30 group-hover:opacity-100 transition-opacity">
+                                <i data-lucide="grip-horizontal" class="w-5 h-5"></i>
                             </div>
                             <button onclick="deleteCard('${card.id}')" class="opacity-0 group-hover:opacity-40 hover:text-red-500 hover:opacity-100 p-2 -mr-2 transition-all">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -216,7 +223,7 @@
             });
             
             lucide.createIcons();
-            resizeAll();
+            setTimeout(resizeAll, 10); // 描画後に高さを計算
             initSortable();
         }
 
@@ -226,17 +233,17 @@
 
             sortableInstance = new Sortable(container, {
                 animation: 250,
-                handle: '.drag-handle',
+                handle: '.drag-handle', // グリップアイコンのみドラッグ可能にする
                 ghostClass: 'sortable-ghost',
                 dragClass: 'sortable-drag',
-                forceFallback: true, // タッチデバイスでの動作を安定させる
-                fallbackTolerance: 3, // 少し動かさないとドラッグと判定しない
+                forceFallback: false, // ブラウザ標準のドラッグを使用（スクロールを優先）
                 onEnd: () => {
                     const newOrder = Array.from(container.querySelectorAll('.keep-card')).map(el => 
                         appState.data[currentTabId].find(c => c.id === el.dataset.id)
                     );
                     appState.data[currentTabId] = newOrder;
                     save();
+                    resizeAll();
                 }
             });
         }
@@ -335,11 +342,18 @@
         function importData() {
             const input = document.createElement('input');
             input.type = 'file';
+            input.accept = ".json";
             input.onchange = e => {
                 const reader = new FileReader();
                 reader.onload = ev => {
-                    const data = JSON.parse(ev.target.result);
-                    if (data.data && data.tabs) { appState = data; save(); location.reload(); }
+                    try {
+                        const data = JSON.parse(ev.target.result);
+                        if (data.data && data.tabs) { 
+                            appState = data; 
+                            save(); 
+                            location.reload(); 
+                        }
+                    } catch (err) { alert("無効なファイルです"); }
                 };
                 reader.readAsText(e.target.files[0]);
             };
