@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Memo Pro - Final Stable</title>
+    <title>My Memo Pro - Stable Move</title>
     
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,7 +17,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans JP', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f9fafb; }
         
-        /* タイル状レイアウト (Pinterest/Keep風) */
         #cardContainer { 
             display: grid; 
             grid-template-columns: repeat(2, 1fr); 
@@ -32,12 +31,17 @@
         .keep-card { 
             border-radius: 16px; 
             margin-bottom: 12px; 
-            transition: all 0.2s; 
+            transition: transform 0.2s, box-shadow 0.2s; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
             border: 1px solid rgba(0,0,0,0.08); 
             overflow: hidden; 
             height: fit-content;
+            touch-action: none; /* SortableJSの動作を安定させる */
         }
+
+        /* ドラッグ中のスタイル */
+        .sortable-ghost { opacity: 0.3; transform: scale(0.95); }
+        .sortable-drag { box-shadow: 0 10px 20px rgba(0,0,0,0.15); transform: rotate(2deg); }
 
         .item-row.checked { opacity: 0.5; background-color: rgba(0,0,0,0.03); }
         .checked-text { text-decoration: line-through; color: #9ca3af; }
@@ -56,12 +60,10 @@
         .tab-btn { padding: 12px 16px; font-weight: 500; font-size: 0.85rem; cursor: pointer; border-bottom: 3px solid transparent; flex-shrink: 0; transition: all 0.2s; }
         .tab-btn.active { color: #f97316; border-bottom: 3px solid #f97316; background-color: rgba(249, 115, 22, 0.05); }
         
-        .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); transition: transform 0.1s; }
-        .color-dot:active { transform: scale(1.2); }
+        .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* カラーバリエーション */
         .bg-white { background-color: #ffffff; color: #1f2937; }
         .bg-red { background-color: #fee2e2; color: #7f1d1d; }
         .bg-orange { background-color: #ffedd5; color: #9a3412; }
@@ -109,12 +111,12 @@
     </button>
 
     <script>
-        // --- State Management ---
         let currentTabId = 'tab1';
         let appState = {
             data: { tab1: [], tab2: [], tab3: [], tab4: [] },
             tabs: { tab1: 'メイン', tab2: '店舗別', tab3: '予備', tab4: 'リスト' }
         };
+        let sortableInstance = null;
 
         const COLORS = [
             { name: 'white', class: 'bg-white' }, { name: 'red', class: 'bg-red' },
@@ -124,17 +126,13 @@
             { name: 'gray', class: 'bg-gray' }
         ];
 
-        // --- Core Functions ---
         function init() {
             const savedData = localStorage.getItem('memo_pro_final_data');
             const savedTabs = localStorage.getItem('memo_pro_final_tabs');
-            
             if (savedData) appState.data = JSON.parse(savedData);
             if (savedTabs) appState.tabs = JSON.parse(savedTabs);
-
             renderTabs();
             renderCards();
-            lucide.createIcons();
         }
 
         function save() {
@@ -157,7 +155,7 @@
 
                 if (isActive) {
                     const editBtn = document.createElement('button');
-                    editBtn.className = "ml-2 opacity-30 hover:opacity-100 transition-opacity";
+                    editBtn.className = "ml-2 opacity-30 hover:opacity-100 p-1";
                     editBtn.innerHTML = '<i data-lucide="pencil" class="w-3 h-3"></i>';
                     editBtn.onclick = (e) => { e.stopPropagation(); renameTab(id); };
                     btn.appendChild(editBtn);
@@ -189,10 +187,10 @@
                 cardEl.innerHTML = `
                     <div class="card-inner p-4">
                         <div class="flex items-center justify-between -mt-1 mb-2">
-                            <div class="drag-handle p-1 opacity-0 group-hover:opacity-30 cursor-grab active:cursor-grabbing">
+                            <div class="drag-handle p-2 -ml-2 opacity-20 group-hover:opacity-60 cursor-grab active:cursor-grabbing">
                                 <i data-lucide="grip-horizontal" class="w-4 h-4"></i>
                             </div>
-                            <button onclick="deleteCard('${card.id}')" class="opacity-0 group-hover:opacity-40 hover:text-red-500 hover:opacity-100 p-1 transition-all">
+                            <button onclick="deleteCard('${card.id}')" class="opacity-0 group-hover:opacity-40 hover:text-red-500 hover:opacity-100 p-2 -mr-2 transition-all">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
@@ -219,11 +217,20 @@
             
             lucide.createIcons();
             resizeAll();
+            initSortable();
+        }
 
-            // ドラッグ＆ドロップ
-            new Sortable(container, {
-                animation: 200,
+        function initSortable() {
+            const container = document.getElementById('cardContainer');
+            if (sortableInstance) sortableInstance.destroy();
+
+            sortableInstance = new Sortable(container, {
+                animation: 250,
                 handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                forceFallback: true, // タッチデバイスでの動作を安定させる
+                fallbackTolerance: 3, // 少し動かさないとドラッグと判定しない
                 onEnd: () => {
                     const newOrder = Array.from(container.querySelectorAll('.keep-card')).map(el => 
                         appState.data[currentTabId].find(c => c.id === el.dataset.id)
@@ -234,15 +241,9 @@
             });
         }
 
-        // --- Action Handlers ---
         function addNewCard() {
             if (!appState.data[currentTabId]) appState.data[currentTabId] = [];
-            const newCard = {
-                id: 'c' + Date.now(),
-                title: '新規メモ',
-                color: 'bg-white',
-                items: []
-            };
+            const newCard = { id: 'c' + Date.now(), title: '新規メモ', color: 'bg-white', items: [] };
             appState.data[currentTabId].unshift(newCard);
             save();
             renderCards();
@@ -258,19 +259,12 @@
 
         function updateTitle(cardId, text) {
             const card = appState.data[currentTabId].find(c => c.id === cardId);
-            if (card) {
-                card.title = text || '無題';
-                save();
-            }
+            if (card) { card.title = text || '無題'; save(); }
         }
 
         function updateColor(cardId, colorClass) {
             const card = appState.data[currentTabId].find(c => c.id === cardId);
-            if (card) {
-                card.color = colorClass;
-                save();
-                renderCards();
-            }
+            if (card) { card.color = colorClass; save(); renderCards(); }
         }
 
         function addItem(cardId) {
@@ -279,12 +273,9 @@
             if (text) {
                 const card = appState.data[currentTabId].find(c => c.id === cardId);
                 const newItem = { id: 'it' + Date.now(), text: text, checked: false };
-                
-                // チェック済みのアイテムより上に挿入
                 const firstChecked = card.items.findIndex(i => i.checked);
                 if (firstChecked === -1) card.items.push(newItem);
                 else card.items.splice(firstChecked, 0, newItem);
-                
                 input.value = '';
                 save();
                 renderCards();
@@ -294,9 +285,7 @@
         function toggleItem(cardId, itemId) {
             const card = appState.data[currentTabId].find(c => c.id === cardId);
             const item = card.items.find(i => i.id === itemId);
-            
             item.checked = !item.checked;
-            
             if (item.checked) {
                 const now = new Date();
                 item.date = `${now.getMonth() + 1}/${now.getDate()}`;
@@ -305,14 +294,11 @@
                 delete item.date;
                 delete item.ts;
             }
-
-            // ソート: 未チェック(新しい順) -> チェック済み(完了順)
             card.items.sort((a, b) => {
                 if (a.checked !== b.checked) return a.checked ? 1 : -1;
                 if (a.checked) return (a.ts || 0) - (b.ts || 0);
-                return 0; // 未チェック同士は順序維持
+                return 0;
             });
-
             save();
             renderCards();
         }
@@ -325,26 +311,23 @@
             renderCards();
         }
 
-        // --- Grid Resizer (Masonry Effect) ---
         function resizeAll() {
             const container = document.getElementById('cardContainer');
             const rowHeight = 1; 
-            const rowGap = 0; 
-            
             const cards = container.querySelectorAll('.keep-card');
             cards.forEach(card => {
-                const contentHeight = card.querySelector('.card-inner').getBoundingClientRect().height;
-                const rowSpan = Math.ceil((contentHeight + 12) / (rowHeight + rowGap));
-                card.style.gridRowEnd = "span " + rowSpan;
+                const inner = card.querySelector('.card-inner');
+                if (inner) {
+                    const contentHeight = inner.getBoundingClientRect().height;
+                    card.style.gridRowEnd = "span " + Math.ceil(contentHeight + 12);
+                }
             });
         }
 
-        // --- Data Portability ---
         function exportData() {
             const blob = new Blob([JSON.stringify(appState)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
+            a.href = URL.createObjectURL(blob);
             a.download = `my-memo-pro-backup-${new Date().toISOString().slice(0,10)}.json`;
             a.click();
         }
@@ -353,29 +336,20 @@
             const input = document.createElement('input');
             input.type = 'file';
             input.onchange = e => {
-                const file = e.target.files[0];
                 const reader = new FileReader();
-                reader.onload = event => {
-                    const data = JSON.parse(event.target.result);
-                    if (data.data && data.tabs) {
-                        appState = data;
-                        save();
-                        location.reload();
-                    }
+                reader.onload = ev => {
+                    const data = JSON.parse(ev.target.result);
+                    if (data.data && data.tabs) { appState = data; save(); location.reload(); }
                 };
-                reader.readAsText(file);
+                reader.readAsText(e.target.files[0]);
             };
             input.click();
         }
 
-        // --- Event Listeners ---
         window.onload = init;
         window.onresize = resizeAll;
-        
-        // コンテンツの変化を監視してレイアウトを再計算
         const observer = new MutationObserver(resizeAll);
         observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-
     </script>
 </body>
 </html>
