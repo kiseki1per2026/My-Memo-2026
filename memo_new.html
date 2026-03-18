@@ -53,6 +53,16 @@
             column-gap: 16px;
         }
 
+        @media (max-width: 639px) {
+
+            /* スマホ環境: 画面幅が狭くても最低2列を維持 */
+            #cardContainer {
+                column-width: auto;
+                column-count: 2;
+                column-gap: 12px;
+            }
+        }
+
         .keep-card {
             border-radius: 0.75rem;
             margin-bottom: 16px;
