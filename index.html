@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>My Memo</title>
     
-    <meta name="theme-color" content="#1f2937">
+    <meta name="theme-color" content="#242c38">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -19,8 +19,8 @@
             theme: {
                 extend: {
                     colors: {
-                        'memo-primary': '#1a531c', // ニュートラルグリーン
-                        'memo-orange': '#c2410c', // 深いオレンジ
+                        'memo-primary': '#97a37e', // 添付画像のニュートラルな緑
+                        'memo-orange': '#ea580c', // 視認性の良い深いオレンジ
                     },
                 },
             },
@@ -29,7 +29,14 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #111827; color: #e5e7eb; }
+        
+        /* 全体背景：少しだけ明るくして沈み込みを防止 */
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            background-color: #1a202c; 
+            color: #f3f4f6; 
+        }
         
         #cardContainer { 
             display: grid; 
@@ -46,59 +53,63 @@
             border-radius: 16px; 
             margin-bottom: 12px; 
             transition: transform 0.2s, box-shadow 0.2s; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-            border: 1px solid rgba(255,255,255,0.08); 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); 
+            border: 1px solid rgba(255,255,255,0.1); 
             overflow: hidden; 
             height: fit-content;
             position: relative;
             z-index: 1;
             background-clip: padding-box;
-            color: #e5e7eb;
         }
 
-        /* カード背景色 (ダークモード) */
-        .bg-card-white { background-color: #1f2937; }
-        .bg-card-red { background-color: #450a0a; color: #fecaca; }
-        .bg-card-orange { background-color: #45200a; color: #fecaca; }
-        .bg-card-yellow { background-color: #453c0a; color: #fef3c7; }
-        .bg-card-green { background-color: #052e16; color: #bbf7d0; }
-        .bg-card-teal { background-color: #052e16; color: #a7f3d0; }
-        .bg-card-blue { background-color: #172554; color: #bfdbfe; }
-        .bg-card-purple { background-color: #3f0a45; color: #ddd6fe; }
-        .bg-card-gray { background-color: #1f2937; }
+        /* カードのベース背景色 */
+        .bg-card-white { background-color: #2d3748; }
+        .bg-card-red { background-color: #5a1a1a; }
+        .bg-card-orange { background-color: #5a2e1a; }
+        .bg-card-yellow { background-color: #5a4e1a; }
+        .bg-card-green { background-color: #1a3a1a; }
+        .bg-card-teal { background-color: #1a3a3a; }
+        .bg-card-blue { background-color: #1a2a5a; }
+        .bg-card-purple { background-color: #3a1a5a; }
+        .bg-card-gray { background-color: #3d4655; }
 
-        .keep-card input { color: #e5e7eb; }
-        .keep-card input::placeholder { color: #6b7280; } /* gray-500 */
+        .card-title {
+            color: #97a37e; /* 商品名の白と差別化 */
+            font-weight: 800;
+            letter-spacing: 0.025em;
+        }
 
         .drag-handle { touch-action: none; cursor: grab; }
         .sortable-ghost { opacity: 0.3; transform: scale(0.95); }
-        .sortable-drag { box-shadow: 0 10px 20px rgba(0,0,0,0.15); transform: rotate(2deg); z-index: 100; }
+        .sortable-drag { box-shadow: 0 10px 20px rgba(0,0,0,0.3); transform: rotate(2deg); z-index: 100; }
 
-        .item-row.checked { opacity: 0.5; background-color: rgba(255,255,255,0.03); }
-        .checked-text { text-decoration: line-through; color: #9ca3af; }
+        .item-row.checked { opacity: 0.4; }
+        .checked-text { text-decoration: line-through; color: #a0aec0; }
         
+        /* 日付バッジ：深いオレンジ ＋ 黒文字 */
         .date-badge { 
             font-size: 0.65rem; 
-            font-weight: 800; 
-            padding: 1px 6px; 
+            font-weight: 900; 
+            padding: 2px 6px; 
             border-radius: 4px; 
-            background: #c2410c !important; /* 深いオレンジ */
-            color: #000000 !important; /* 黒 */
+            background: #ea580c !important; 
+            color: #000000 !important; 
             margin-left: auto; 
             white-space: nowrap;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
-        .tab-btn { padding: 12px 16px; font-weight: 500; font-size: 0.85rem; cursor: pointer; border-bottom: 3px solid transparent; flex-shrink: 0; transition: all 0.2s; color: #9ca3af; }
-        .tab-btn.active { color: #1a531c; border-bottom: 3px solid #1a531c; background-color: rgba(26, 83, 28, 0.05); }
+        .tab-btn { padding: 12px 16px; font-weight: 500; font-size: 0.85rem; cursor: pointer; border-bottom: 3px solid transparent; flex-shrink: 0; transition: all 0.2s; color: #718096; }
+        .tab-btn.active { color: #97a37e; border-bottom: 3px solid #97a37e; background-color: rgba(151, 163, 126, 0.1); }
         
-        .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }
+        .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(255,255,255,0.2); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        input::placeholder { color: #718096; }
     </style>
 </head>
-<body class="dark pb-32">
+<body class="pb-32">
 
-    <header class="bg-gray-800/95 dark:bg-gray-900/95 backdrop-blur-md sticky top-0 z-50 border-b border-gray-700 dark:border-gray-800">
+    <header class="bg-gray-900/95 backdrop-blur-md sticky top-0 z-50 border-b border-gray-800">
         <div class="max-w-7xl mx-auto px-4 flex items-center h-14 justify-between">
             <div class="flex items-center space-x-2">
                 <div class="bg-memo-primary p-1.5 rounded-lg text-white">
@@ -111,7 +122,7 @@
                 <button onclick="importData()" title="インポート" class="p-2 text-gray-400 hover:text-memo-primary"><i data-lucide="upload" class="w-5 h-5"></i></button>
             </div>
         </div>
-        <div id="tabBar" class="flex overflow-x-auto no-scrollbar px-2 border-t border-gray-700 dark:border-gray-800 items-center"></div>
+        <div id="tabBar" class="flex overflow-x-auto no-scrollbar px-2 border-t border-gray-800 items-center"></div>
     </header>
 
     <main class="max-w-7xl mx-auto p-3 md:p-6 mt-2">
@@ -126,16 +137,16 @@
         let currentTabId = 'tab1';
         let appState = {
             data: { tab1: [], tab2: [], tab3: [], tab4: [] },
-            tabs: { tab1: 'メイン', tab2: '店舗別', tab3: '予備', tab4: 'リスト' }
+            tabs: { tab1: 'メイン', tab2: 'Shop I', tab3: 'Shop II', tab4: 'etc' }
         };
         let sortableInstance = null;
 
         const COLORS = [
-            { name: 'white', class: 'bg-card-white' }, // デフォルト
+            { name: 'white', class: 'bg-card-white' },
             { name: 'red', class: 'bg-card-red' },
-            { name: 'orange', class: 'bg-card-orange' }, // 日付用とは別
+            { name: 'orange', class: 'bg-card-orange' },
             { name: 'yellow', class: 'bg-card-yellow' },
-            { name: 'green', class: 'bg-card-green' }, // ニュートラルグリーンとは別
+            { name: 'green', class: 'bg-card-green' },
             { name: 'teal', class: 'bg-card-teal' },
             { name: 'blue', class: 'bg-card-blue' },
             { name: 'purple', class: 'bg-card-purple' },
@@ -162,7 +173,7 @@
             Object.keys(appState.tabs).forEach(id => {
                 const isActive = currentTabId === id;
                 const btn = document.createElement('div');
-                btn.className = `tab-btn ${isActive ? 'active' : 'opacity-40'}`;
+                btn.className = `tab-btn ${isActive ? 'active' : ''}`;
                 
                 const span = document.createElement('span');
                 span.innerText = appState.tabs[id];
@@ -210,18 +221,18 @@
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
-                        <div contenteditable="true" class="font-bold outline-none text-base mb-3 px-1 block break-all" onblur="updateTitle('${card.id}', this.innerText)">${card.title}</div>
+                        <div contenteditable="true" class="card-title outline-none text-base mb-3 px-1 block break-all" onblur="updateTitle('${card.id}', this.innerText)">${card.title}</div>
                         <div class="space-y-0.5">
                             ${(card.items || []).map(item => `
                                 <div class="item-row flex items-center p-2 -mx-2 rounded-lg cursor-pointer transition-all ${item.checked ? 'checked' : 'hover:bg-white/5'}" onclick="toggleItem('${card.id}', '${item.id}')">
-                                    <i data-lucide="${item.checked ? 'check-circle-2' : 'circle'}" class="w-4 h-4 mr-2 ${item.checked ? 'text-memo-primary' : 'opacity-20'}"></i>
-                                    <span class="text-sm flex-1 break-all ${item.checked ? 'checked-text' : ''}">${item.text}</span>
+                                    <i data-lucide="${item.checked ? 'check-circle-2' : 'circle'}" class="w-4 h-4 mr-2 ${item.checked ? 'text-memo-primary' : 'opacity-30'}"></i>
+                                    <span class="text-sm flex-1 break-all text-gray-100 ${item.checked ? 'checked-text' : ''}">${item.text}</span>
                                     ${item.date ? `<span class="date-badge">${item.date}</span>` : `<button onclick="deleteItem('${card.id}', '${item.id}', event)" class="opacity-0 group-hover:opacity-40 hover:opacity-100 p-1"><i data-lucide="x" class="w-3 h-3"></i></button>`}
                                 </div>
                             `).join('')}
                         </div>
-                        <div class="mt-3 flex items-center border-b border-gray-700 focus-within:border-memo-primary">
-                            <input type="text" id="input-${card.id}" placeholder="＋ 追加" class="bg-transparent text-sm w-full py-2 focus:outline-none" onkeydown="if(event.key==='Enter') addItem('${card.id}')">
+                        <div class="mt-3 flex items-center border-b border-white/10 focus-within:border-memo-primary">
+                            <input type="text" id="input-${card.id}" placeholder="＋ 追加" class="bg-transparent text-sm w-full py-2 focus:outline-none text-white" onkeydown="if(event.key==='Enter') addItem('${card.id}')">
                         </div>
                         <div class="mt-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity overflow-x-auto no-scrollbar pb-1">
                             ${COLORS.map(c => `<div onclick="updateColor('${card.id}', '${c.class}')" class="color-dot ${c.class}"></div>`).join('')}
@@ -259,7 +270,7 @@
 
         function addNewCard() {
             if (!appState.data[currentTabId]) appState.data[currentTabId] = [];
-            const newCard = { id: 'c' + Date.now(), title: '新規メモ', color: 'bg-card-white', items: [] };
+            const newCard = { id: 'c' + Date.now(), title: '新規リスト', color: 'bg-card-white', items: [] };
             appState.data[currentTabId].unshift(newCard);
             save();
             renderCards();
@@ -370,9 +381,7 @@
 
         window.onload = init;
         window.onresize = resizeAll;
-        const observer = new MutationObserver(() => {
-            resizeAll();
-        });
+        const observer = new MutationObserver(() => { resizeAll(); });
         observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     </script>
 </body>
