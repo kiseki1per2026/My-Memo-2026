@@ -28,7 +28,7 @@
     </script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap');
         
         /* 全体背景：少しだけ明るくして沈み込みを防止 */
         body { 
@@ -77,6 +77,7 @@
             color: #97a37e; /* 商品名の白と差別化 */
             font-weight: 800;
             letter-spacing: 0.025em;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8); /* 背景沈み込み防止の超微細シャドウ */
         }
 
         .drag-handle { touch-action: none; cursor: grab; }
@@ -86,16 +87,21 @@
         .item-row.checked { opacity: 0.4; }
         .checked-text { text-decoration: line-through; color: #a0aec0; }
         
-        /* 日付バッジ：深いオレンジ ＋ 黒文字 */
+        /* 日付バッジ：一番視認性が高かった完成版スタイル */
         .date-badge { 
-            font-size: 0.65rem; 
+            font-size: 0.725rem; 
             font-weight: 900; 
-            padding: 2px 6px; 
-            border-radius: 4px; 
+            padding: 3px 8px; 
+            border-radius: 6px; 
             background: #ea580c !important; 
-            color: #000000 !important; 
+            color: #ffffff !important; 
+            border: 1px solid rgba(0,0,0,0.6);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 0 1px 1px rgba(0,0,0,0.3);
             margin-left: auto; 
             white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .tab-btn { padding: 12px 16px; font-weight: 500; font-size: 0.85rem; cursor: pointer; border-bottom: 3px solid transparent; flex-shrink: 0; transition: all 0.2s; color: #718096; }
@@ -129,6 +135,9 @@
         <div id="cardContainer"></div>
     </main>
 
+    <!-- トースト通知用のコンテナ -->
+    <div id="toastContainer" class="fixed bottom-28 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none w-full max-w-sm px-4"></div>
+
     <button onclick="addNewCard()" class="fixed bottom-8 right-6 bg-memo-primary text-white p-4 rounded-2xl shadow-lg active:scale-90 transition-all z-50">
         <i data-lucide="plus" class="w-7 h-7"></i>
     </button>
@@ -137,7 +146,7 @@
         let currentTabId = 'tab1';
         let appState = {
             data: { tab1: [], tab2: [], tab3: [], tab4: [] },
-            tabs: { tab1: 'メイン', tab2: 'Shop I', tab3: 'Shop II', tab4: 'etc' }
+            tabs: { tab1: 'Main', tab2: 'Shop I', tab3: 'Shop II', tab4: 'etc' }
         };
         let sortableInstance = null;
 
@@ -158,6 +167,13 @@
             const savedTabs = localStorage.getItem('memo_pro_final_tabs');
             if (savedData) appState.data = JSON.parse(savedData);
             if (savedTabs) appState.tabs = JSON.parse(savedTabs);
+            
+            // 古いタブ名「メイン」が残っていれば自動で「Main」に書き換える
+            if (appState.tabs.tab1 === 'メイン') {
+                appState.tabs.tab1 = 'Main';
+                save();
+            }
+
             renderTabs();
             renderCards();
         }
@@ -213,21 +229,23 @@
                 
                 cardEl.innerHTML = `
                     <div class="card-inner p-4">
-                        <div class="flex items-center justify-between -mt-1 mb-2">
-                            <div class="drag-handle p-2 -ml-2 opacity-30 group-hover:opacity-100 transition-opacity">
-                                <i data-lucide="grip-horizontal" class="w-5 h-5"></i>
+                        <!-- ドラッグハンドル・タイトル・ゴミ箱を1列に並べたスマートな構成 -->
+                        <div class="flex items-center gap-2 -mt-1 mb-2">
+                            <div class="drag-handle p-1 -ml-1 opacity-30 group-hover:opacity-100 transition-opacity cursor-grab text-gray-400 hover:text-white">
+                                <i data-lucide="grip-vertical" class="w-4 h-4"></i>
                             </div>
-                            <button onclick="deleteCard('${card.id}')" class="opacity-0 group-hover:opacity-40 hover:text-red-500 hover:opacity-100 p-2 -mr-2 transition-all">
+                            <div contenteditable="true" class="card-title flex-1 outline-none text-lg font-extrabold break-all leading-tight" onblur="updateTitle('${card.id}', this.innerText)">${card.title}</div>
+                            <button onclick="deleteCard('${card.id}')" class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-500 p-1 -mr-1 transition-all">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
-                        <div contenteditable="true" class="card-title outline-none text-base mb-3 px-1 block break-all" onblur="updateTitle('${card.id}', this.innerText)">${card.title}</div>
+                        
                         <div class="space-y-0.5">
                             ${(card.items || []).map(item => `
                                 <div class="item-row flex items-center p-2 -mx-2 rounded-lg cursor-pointer transition-all ${item.checked ? 'checked' : 'hover:bg-white/5'}" onclick="toggleItem('${card.id}', '${item.id}')">
-                                    <i data-lucide="${item.checked ? 'check-circle-2' : 'circle'}" class="w-4 h-4 mr-2 ${item.checked ? 'text-memo-primary' : 'opacity-30'}"></i>
+                                    <i data-lucide="${item.checked ? 'check-circle-2' : 'circle'}" class="w-4 h-4 mr-2 flex-shrink-0 ${item.checked ? 'text-memo-primary' : 'opacity-30'}"></i>
                                     <span class="text-sm flex-1 break-all text-gray-100 ${item.checked ? 'checked-text' : ''}">${item.text}</span>
-                                    ${item.date ? `<span class="date-badge">${item.date}</span>` : `<button onclick="deleteItem('${card.id}', '${item.id}', event)" class="opacity-0 group-hover:opacity-40 hover:opacity-100 p-1"><i data-lucide="x" class="w-3 h-3"></i></button>`}
+                                    ${item.date ? `<span class="date-badge ml-2">${item.date}</span>` : `<button onclick="deleteItem('${card.id}', '${item.id}', event)" class="opacity-0 group-hover:opacity-40 hover:opacity-100 p-1 ml-1"><i data-lucide="x" class="w-3 h-3"></i></button>`}
                                 </div>
                             `).join('')}
                         </div>
@@ -350,12 +368,62 @@
             });
         }
 
-        function exportData() {
-            const blob = new Blob([JSON.stringify(appState)], {type: 'application/json'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `my-memo-backup-${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
+        /* ----- トースト通知表示関数 ----- */
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            // 黒ベースの引き締まったデザイン
+            toast.className = 'bg-gray-800/95 backdrop-blur-md text-white px-5 py-3 rounded-full shadow-2xl border border-gray-700 text-sm font-bold flex items-center gap-3 transition-all duration-300 transform translate-y-8 opacity-0 pointer-events-auto';
+            toast.innerHTML = `<i data-lucide="check-circle-2" class="w-5 h-5 text-memo-primary"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            lucide.createIcons({ root: toast });
+            
+            // アニメーションを確実に発火させる
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    toast.classList.remove('translate-y-8', 'opacity-0');
+                    toast.classList.add('translate-y-0', 'opacity-100');
+                });
+            });
+            
+            // 3秒後にフェードアウトして要素を削除
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-8', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        /* ----- 自動シェア・トースト通知つきエクスポート ----- */
+        async function exportData() {
+            const jsonStr = JSON.stringify(appState);
+            const fileName = `my-memo-backup-${new Date().toISOString().slice(0,10)}.json`;
+            const file = new File([jsonStr], fileName, {type: 'application/json'});
+
+            // ユーザーに視覚的な安心感（トースト通知）を見せる
+            showToast('バックアップを作成しました');
+
+            // Web Share API（スマホ専用の送り先選択画面）のチェック
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'My Memo Backup',
+                        text: 'My Memoからのバックアップデータです'
+                    });
+                } catch (error) {
+                    console.log('共有がキャンセル・または失敗しました', error);
+                }
+            } else {
+                // PCや未対応ブラウザの場合は通常のファイルダウンロードを実行
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(file);
+                a.download = fileName;
+                a.click();
+            }
         }
 
         function importData() {
