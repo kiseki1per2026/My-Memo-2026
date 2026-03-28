@@ -19,8 +19,8 @@
             theme: {
                 extend: {
                     colors: {
-                        'memo-primary': '#97a37e', // 添付画像のニュートラルな緑
-                        'memo-orange': '#ea580c', // 視認性の良い深いオレンジ
+                        'memo-primary': '#97a37e',
+                        'memo-orange': '#ea580c',
                     },
                 },
             },
@@ -30,7 +30,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap');
         
-        /* 全体背景：少しだけ明るくして沈み込みを防止 */
         body { 
             font-family: 'Noto Sans JP', sans-serif; 
             -webkit-tap-highlight-color: transparent; 
@@ -62,7 +61,6 @@
             background-clip: padding-box;
         }
 
-        /* カードのベース背景色 */
         .bg-card-white { background-color: #2d3748; }
         .bg-card-red { background-color: #5a1a1a; }
         .bg-card-orange { background-color: #5a2e1a; }
@@ -74,10 +72,10 @@
         .bg-card-gray { background-color: #3d4655; }
 
         .card-title {
-            color: #97a37e; /* 商品名の白と差別化 */
+            color: #97a37e;
             font-weight: 800;
             letter-spacing: 0.025em;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.8); /* 背景沈み込み防止の超微細シャドウ */
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
         }
 
         .drag-handle { touch-action: none; cursor: grab; }
@@ -87,7 +85,6 @@
         .item-row.checked { opacity: 0.4; }
         .checked-text { text-decoration: line-through; color: #a0aec0; }
         
-        /* 日付バッジ：一番視認性が高かった完成版スタイル */
         .date-badge { 
             font-size: 0.725rem; 
             font-weight: 900; 
@@ -135,7 +132,6 @@
         <div id="cardContainer"></div>
     </main>
 
-    <!-- トースト通知用のコンテナ -->
     <div id="toastContainer" class="fixed bottom-28 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none w-full max-w-sm px-4"></div>
 
     <button onclick="addNewCard()" class="fixed bottom-8 right-6 bg-memo-primary text-white p-4 rounded-2xl shadow-lg active:scale-90 transition-all z-50">
@@ -168,7 +164,6 @@
             if (savedData) appState.data = JSON.parse(savedData);
             if (savedTabs) appState.tabs = JSON.parse(savedTabs);
             
-            // 古いタブ名「メイン」が残っていれば自動で「Main」に書き換える
             if (appState.tabs.tab1 === 'メイン') {
                 appState.tabs.tab1 = 'Main';
                 save();
@@ -229,7 +224,6 @@
                 
                 cardEl.innerHTML = `
                     <div class="card-inner p-4">
-                        <!-- ドラッグハンドル・タイトル・ゴミ箱を1列に並べたスマートな構成 -->
                         <div class="flex items-center gap-2 -mt-1 mb-2">
                             <div class="drag-handle p-1 -ml-1 opacity-30 group-hover:opacity-100 transition-opacity cursor-grab text-gray-400 hover:text-white">
                                 <i data-lucide="grip-vertical" class="w-4 h-4"></i>
@@ -249,8 +243,11 @@
                                 </div>
                             `).join('')}
                         </div>
-                        <div class="mt-3 flex items-center border-b border-white/10 focus-within:border-memo-primary">
-                            <input type="text" id="input-${card.id}" placeholder="＋ 追加" class="bg-transparent text-sm w-full py-2 focus:outline-none text-white" onkeydown="if(event.key==='Enter') addItem('${card.id}')">
+                        <div class="mt-3 flex items-center border-b border-white/10 focus-within:border-memo-primary gap-2">
+                            <input type="text" id="input-${card.id}" placeholder="＋ 追加" class="bg-transparent text-sm flex-1 py-2 focus:outline-none text-white" onkeydown="if(event.key==='Enter') addItem('${card.id}')">
+                            <button onclick="addItem('${card.id}')" class="p-2 text-gray-400 hover:text-memo-primary active:scale-90">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
                         </div>
                         <div class="mt-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity overflow-x-auto no-scrollbar pb-1">
                             ${COLORS.map(c => `<div onclick="updateColor('${card.id}', '${c.class}')" class="color-dot ${c.class}"></div>`).join('')}
@@ -368,20 +365,17 @@
             });
         }
 
-        /* ----- トースト通知表示関数 ----- */
         function showToast(message) {
             const container = document.getElementById('toastContainer');
             if (!container) return;
             
             const toast = document.createElement('div');
-            // 黒ベースの引き締まったデザイン
             toast.className = 'bg-gray-800/95 backdrop-blur-md text-white px-5 py-3 rounded-full shadow-2xl border border-gray-700 text-sm font-bold flex items-center gap-3 transition-all duration-300 transform translate-y-8 opacity-0 pointer-events-auto';
             toast.innerHTML = `<i data-lucide="check-circle-2" class="w-5 h-5 text-memo-primary"></i><span>${message}</span>`;
             
             container.appendChild(toast);
             lucide.createIcons({ root: toast });
             
-            // アニメーションを確実に発火させる
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     toast.classList.remove('translate-y-8', 'opacity-0');
@@ -389,7 +383,6 @@
                 });
             });
             
-            // 3秒後にフェードアウトして要素を削除
             setTimeout(() => {
                 toast.classList.remove('translate-y-0', 'opacity-100');
                 toast.classList.add('translate-y-8', 'opacity-0');
@@ -397,33 +390,45 @@
             }, 3000);
         }
 
-        /* ----- 自動シェア・トースト通知つきエクスポート ----- */
         async function exportData() {
             const jsonStr = JSON.stringify(appState);
             const fileName = `my-memo-backup-${new Date().toISOString().slice(0,10)}.json`;
             const file = new File([jsonStr], fileName, {type: 'application/json'});
 
-            // ユーザーに視覚的な安心感（トースト通知）を見せる
             showToast('バックアップを作成しました');
 
-            // Web Share API（スマホ専用の送り先選択画面）のチェック
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            // Web Share APIの実行
+            if (navigator.share) {
                 try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'My Memo Backup',
-                        text: 'My Memoからのバックアップデータです'
-                    });
+                    // まずファイル共有を試みる
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: 'My Memo Backup',
+                            text: 'バックアップデータです'
+                        });
+                    } else {
+                        // ファイル共有不可の場合はテキストとして共有（共有画面を確実に立ち上げる）
+                        await navigator.share({
+                            title: 'My Memo Backup Data',
+                            text: jsonStr
+                        });
+                    }
                 } catch (error) {
-                    console.log('共有がキャンセル・または失敗しました', error);
+                    console.log('共有がキャンセルまたは失敗しました', error);
+                    // 共有に失敗した場合はダウンロードに切り替え
+                    downloadFile(file, fileName);
                 }
             } else {
-                // PCや未対応ブラウザの場合は通常のファイルダウンロードを実行
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(file);
-                a.download = fileName;
-                a.click();
+                downloadFile(file, fileName);
             }
+        }
+
+        function downloadFile(file, fileName) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
         }
 
         function importData() {
